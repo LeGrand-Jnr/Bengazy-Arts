@@ -29,3 +29,20 @@ Ben/
 ├── tutorials.html
 ├── styles.css
 └── README.md
+```
+
+##### Getting Started
+To view the website locally:
+
+Clone the repository:
+
+```bash
+git clone https://github.com/LeGrand-Jnr/Ben.git
+```
+
+Open index.html in your browser.
+
+Enjoy the artwork!
+
+###### Contact
+For inquiries or feedback, please reach out via the email: samuelodonkor436@gmail.com
