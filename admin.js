@@ -132,24 +132,71 @@
                             alert('Please login first.');
                             return;
                         }
+
                         const items = await apiFetch('/api/gallery');
                         const current = items[idx];
-                        const nextPrice = prompt('Enter new price', current?.price || '');
-                        if (nextPrice !== null) {
+                        const itemRow = button.closest('.flex');
+                        const currentPrice = current?.price || 0;
+
+                        const form = document.createElement('div');
+                        form.className = 'mt-3 p-3 border rounded bg-gray-50';
+                        form.innerHTML = `
+                            <div class="mb-2">
+                                <label class="block text-sm mb-1">Title</label>
+                                <input id="update-title-${idx}" class="w-full border rounded px-2 py-1" value="${escapeHtml(current.title || '')}" />
+                            </div>
+                            <div class="mb-2">
+                                <label class="block text-sm mb-1">Artist</label>
+                                <input id="update-artist-${idx}" class="w-full border rounded px-2 py-1" value="${escapeHtml(current.artist || 'Bengazy')}" />
+                            </div>
+                            <div class="mb-2">
+                                <label class="block text-sm mb-1">Notes</label>
+                                <textarea id="update-notes-${idx}" class="w-full border rounded px-2 py-1" rows="3">${escapeHtml(current.description || '')}</textarea>
+                            </div>
+                            <div class="mb-2">
+                                <label class="block text-sm mb-1">Price</label>
+                                <input id="update-price-${idx}" type="number" class="w-full border rounded px-2 py-1" value="${currentPrice}" />
+                            </div>
+                            <div class="flex gap-2">
+                                <button type="button" class="saveArtworkUpdate bg-secondary text-white px-3 py-1 rounded" data-index="${idx}">Save</button>
+                                <button type="button" class="cancelArtworkUpdate bg-gray-200 px-3 py-1 rounded" data-index="${idx}">Cancel</button>
+                            </div>
+                        `;
+
+                        const existingForm = itemRow.parentElement.querySelector('.saveArtworkUpdate');
+                        if (existingForm) existingForm.closest('.bg-gray-50')?.remove();
+
+                        itemRow.parentElement.appendChild(form);
+
+                        form.querySelector('.cancelArtworkUpdate')?.addEventListener('click', () => form.remove());
+                        form.querySelector('.saveArtworkUpdate')?.addEventListener('click', async () => {
+                            const updatedTitle = document.getElementById(`update-title-${idx}`).value.trim();
+                            const updatedArtist = document.getElementById(`update-artist-${idx}`).value.trim() || 'Bengazy';
+                            const updatedNotes = document.getElementById(`update-notes-${idx}`).value.trim();
+                            const updatedPrice = Number(document.getElementById(`update-price-${idx}`).value) || 0;
+
+                            if (!updatedTitle) {
+                                alert('Title is required.');
+                                return;
+                            }
+
                             await apiFetch(`/api/gallery/${idx}`, {
                                 method: 'PUT',
                                 headers: {
                                     Authorization: `Bearer ${token}`,
                                 },
                                 body: JSON.stringify({
-                                    title: current.title,
-                                    artist: current.artist,
-                                    description: current.description,
-                                    price: Number(nextPrice) || 0,
+                                    title: updatedTitle,
+                                    artist: updatedArtist,
+                                    description: updatedNotes,
+                                    price: updatedPrice,
                                 }),
                             });
+
+                            form.remove();
                             renderArtworkList();
-                        }
+                            alert('Artwork updated successfully.');
+                        });
                     } catch (error) {
                         alert(error.message);
                     }
