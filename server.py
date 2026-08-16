@@ -17,15 +17,29 @@ TOKENS = {}
 
 def load_store():
     if not DATA_FILE.exists():
-        DATA_FILE.write_text('{"gallery": [], "tutorials": []}', encoding="utf-8")
+        DATA_FILE.write_text('{"gallery": [], "tutorials": [], "settings": {"adminPassword": "admin123"}}', encoding="utf-8")
     with DATA_FILE.open("r", encoding="utf-8") as handle:
         try:
             data = json.load(handle)
         except json.JSONDecodeError:
-            data = {"gallery": [], "tutorials": []}
+            data = {"gallery": [], "tutorials": [], "settings": {"adminPassword": ADMIN_PASSWORD}}
     data.setdefault("gallery", [])
     data.setdefault("tutorials", [])
+    data.setdefault("settings", {})
+    if "adminPassword" not in data["settings"]:
+        data["settings"]["adminPassword"] = ADMIN_PASSWORD
     return data
+
+
+def get_admin_password():
+    store = load_store()
+    return store.get("settings", {}).get("adminPassword", ADMIN_PASSWORD)
+
+
+def set_admin_password(new_password):
+    store = load_store()
+    store.setdefault("settings", {})["adminPassword"] = new_password
+    save_store(store)
 
 
 def save_store(store):
@@ -76,7 +90,7 @@ class SiteHandler(SimpleHTTPRequestHandler):
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization")
         self.end_headers()
         self.wfile.write(body)
@@ -84,7 +98,7 @@ class SiteHandler(SimpleHTTPRequestHandler):
     def do_OPTIONS(self):
         self.send_response(204)
         self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization")
         self.end_headers()
 
@@ -114,6 +128,20 @@ class SiteHandler(SimpleHTTPRequestHandler):
 
         self.send_error(405)
 
+    def do_PUT(self):
+        parsed = urlparse(self.path)
+        if parsed.path.startswith("/api/"):
+            self.handle_api()
+            return
+        self.send_error(405)
+
+    def do_DELETE(self):
+        parsed = urlparse(self.path)
+        if parsed.path.startswith("/api/"):
+            self.handle_api()
+            return
+        self.send_error(405)
+
     def handle_api(self):
         parsed = urlparse(self.path)
         path = parsed.path
@@ -126,11 +154,32 @@ class SiteHandler(SimpleHTTPRequestHandler):
         if path == "/api/login":
             data = body or {}
             password = data.get("password", "")
-            if password != ADMIN_PASSWORD:
+            if password != get_admin_password():
                 self.send_json(401, {"error": "Invalid password"})
                 return
             token = generate_token()
             self.send_json(200, {"token": token})
+            return
+
+        if path == "/api/change-password":
+            token = get_bearer_token(self.headers)
+            if not is_valid_token(token):
+                self.send_json(401, {"error": "Unauthorized"})
+                return
+
+            data = body or {}
+            current = (data.get("currentPassword") or "").strip()
+            new_password = (data.get("newPassword") or "").strip()
+            if not current or not new_password:
+                self.send_json(400, {"error": "Current and new passwords are required."})
+                return
+
+            if current != get_admin_password():
+                self.send_json(400, {"error": "Current password is incorrect."})
+                return
+
+            set_admin_password(new_password)
+            self.send_json(200, {"success": True, "message": "Password updated."})
             return
 
         if path == "/api/gallery":
@@ -164,6 +213,38 @@ class SiteHandler(SimpleHTTPRequestHandler):
             self.send_json(201, item)
             return
 
+        if path.startswith("/api/gallery/"):
+            token = get_bearer_token(self.headers)
+            if not is_valid_token(token):
+                self.send_json(401, {"error": "Unauthorized"})
+                return
+
+            parts = [p for p in path.split("/") if p]
+            if len(parts) >= 3 and parts[1] == "gallery":
+                index = int(parts[2])
+                store = load_store()
+                gallery = store.setdefault("gallery", [])
+                if index < 0 or index >= len(gallery):
+                    self.send_json(404, {"error": "Artwork not found"})
+                    return
+
+                if self.command == "DELETE":
+                    gallery.pop(index)
+                    save_store(store)
+                    self.send_json(200, {"deleted": True})
+                    return
+
+                if self.command == "PUT":
+                    data = body or {}
+                    gallery[index]["price"] = data.get("price", gallery[index].get("price", 0))
+                    gallery[index]["description"] = data.get("description", gallery[index].get("description", ""))
+                    gallery[index]["title"] = data.get("title", gallery[index].get("title", ""))
+                    if "artist" in data:
+                        gallery[index]["artist"] = data["artist"]
+                    save_store(store)
+                    self.send_json(200, gallery[index])
+                    return
+
         if path == "/api/tutorials":
             if self.command == "GET":
                 self.send_json(200, load_store().get("tutorials", []))
@@ -187,6 +268,27 @@ class SiteHandler(SimpleHTTPRequestHandler):
             save_store(store)
             self.send_json(201, item)
             return
+
+        if path.startswith("/api/tutorials/"):
+            token = get_bearer_token(self.headers)
+            if not is_valid_token(token):
+                self.send_json(401, {"error": "Unauthorized"})
+                return
+
+            parts = [p for p in path.split("/") if p]
+            if len(parts) >= 3 and parts[1] == "tutorials":
+                index = int(parts[2])
+                store = load_store()
+                tutorials = store.setdefault("tutorials", [])
+                if index < 0 or index >= len(tutorials):
+                    self.send_json(404, {"error": "Tutorial not found"})
+                    return
+
+                if self.command == "DELETE":
+                    tutorials.pop(index)
+                    save_store(store)
+                    self.send_json(200, {"deleted": True})
+                    return
 
         self.send_error(404)
 

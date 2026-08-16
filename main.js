@@ -31,10 +31,22 @@ filterButtons.forEach(button => {
 });
 
 // Gallery rendering & modal
-(function(){
-    function loadGallery(){ try { return JSON.parse(localStorage.getItem('galleryItems')||'[]'); } catch(e){ return []; } }
+(function () {
+    const API_BASE = (window.location.origin && window.location.origin !== 'null')
+        ? window.location.origin
+        : 'http://localhost:8000';
 
-    function createCard(item, idx){
+    async function fetchGallery() {
+        try {
+            const response = await fetch(`${API_BASE}/api/gallery`);
+            if (!response.ok) return [];
+            return await response.json();
+        } catch (error) {
+            return [];
+        }
+    }
+
+    function createCard(item, idx) {
         const el = document.createElement('div');
         el.className = 'artwork-card bg-white rounded-lg overflow-hidden shadow-lg cursor-pointer gallery-item';
         el.innerHTML = `
@@ -43,68 +55,73 @@ filterButtons.forEach(button => {
                 <div class="artwork-overlay absolute inset-0 bg-black bg-opacity-70 flex items-center justify-center opacity-0 transition-opacity duration-300">
                     <div class="text-center text-white p-4">
                         <h3 class="text-xl font-bold mb-2">${item.title}</h3>
-                        <p class="mb-4">${item.artist || ''}</p>
+                        <p class="mb-4">${item.artist || 'Bengazy'}</p>
                         <button class="bg-secondary hover:bg-accent text-white py-2 px-4 rounded-full">View Details</button>
                     </div>
                 </div>
-            </div>`;
+            </div>
+        `;
         el.dataset.idx = idx;
         return el;
     }
 
-    function renderGallery(){
-        const container = document.getElementById('galleryGrid');
-        if(!container) return;
-        const items = loadGallery();
-        if(items.length===0){
-            container.innerHTML = `
-                <div class="col-span-full text-center text-gray-600">No artworks uploaded yet. Artist can add via <a href=\"admin.html\" class=\"text-secondary\">Admin Panel</a>.</div>`;
-            return;
-        }
-        container.innerHTML = '';
-        items.forEach((it, i)=> container.appendChild(createCard(it,i)));
+    function openModal(item) {
+        const modal = document.getElementById('artworkModal');
+        if (!modal || !item) return;
 
-        // add click handlers
-        container.querySelectorAll('.artwork-card').forEach(card=>{
-            card.addEventListener('click', ()=> openModal(Number(card.dataset.idx)));
-        });
-    }
-
-    function openModal(idx){
-        const items = loadGallery();
-        const item = items[idx];
-        if(!item) return;
         document.getElementById('modalTitle').textContent = item.title;
         document.getElementById('modalCover').src = item.cover;
-        document.getElementById('modalDescription').textContent = item.description || '';
-        document.getElementById('modalArtist').textContent = item.artist || '';
+        document.getElementById('modalDescription').textContent = item.description || 'No detailed notes yet.';
+        document.getElementById('modalArtist').textContent = item.artist || 'Bengazy';
         document.getElementById('modalPrice').textContent = item.price ? `$${item.price}` : 'N/A';
-        document.getElementById('notes').textContent = item.description || '';
+        document.getElementById('notes').textContent = item.description || 'No detailed notes yet.';
 
         const strip = document.getElementById('progressStrip');
         strip.innerHTML = '';
-        (item.progress || []).forEach(src=>{
-            const t = document.createElement('img');
-            t.src = src; t.className = 'thumb cursor-pointer';
-            t.addEventListener('click', ()=> document.getElementById('modalCover').src = src);
-            strip.appendChild(t);
+        (item.progress || []).forEach((src) => {
+            const img = document.createElement('img');
+            img.src = src;
+            img.className = 'thumb cursor-pointer';
+            img.alt = item.title;
+            img.addEventListener('click', () => {
+                document.getElementById('modalCover').src = src;
+            });
+            strip.appendChild(img);
         });
 
-        document.getElementById('artworkModal').classList.remove('hidden');
-        document.getElementById('artworkModal').classList.add('flex');
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
     }
 
-    document.getElementById('modalClose')?.addEventListener('click', ()=>{
-        document.getElementById('artworkModal').classList.add('hidden');
-        document.getElementById('artworkModal').classList.remove('flex');
-    });
+    async function renderGallery() {
+        const container = document.getElementById('galleryGrid');
+        if (!container) return;
 
-    document.getElementById('revealNotes')?.addEventListener('click', ()=>{
-        const notes = document.getElementById('notes');
-        notes.classList.toggle('hidden');
-    });
+        const items = await fetchGallery();
+        if (!items.length) {
+            container.innerHTML = '<div class="col-span-full text-center text-gray-600">No artwork uploaded yet.</div>';
+            return;
+        }
 
-    // initialize
-    if (document.readyState !== 'loading') renderGallery();
-    else document.addEventListener('DOMContentLoaded', renderGallery);
+        container.innerHTML = '';
+        items.forEach((item, idx) => {
+            const card = createCard(item, idx);
+            card.addEventListener('click', () => openModal(item));
+            container.appendChild(card);
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        renderGallery();
+
+        const modal = document.getElementById('artworkModal');
+        document.getElementById('modalClose')?.addEventListener('click', () => {
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        });
+
+        document.getElementById('revealNotes')?.addEventListener('click', () => {
+            document.getElementById('notes').classList.toggle('hidden');
+        });
+    });
 })();

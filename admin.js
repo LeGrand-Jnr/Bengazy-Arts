@@ -1,29 +1,35 @@
 (function () {
+    const API_BASE = (window.location.origin && window.location.origin !== 'null')
+        ? window.location.origin
+        : 'http://localhost:8000';
     const DEFAULT_PASSWORD = 'admin123';
 
-    function safeParse(key, fallback) {
-        try {
-            const raw = localStorage.getItem(key);
-            return raw ? JSON.parse(raw) : fallback;
-        } catch {
-            return fallback;
+    function getToken() {
+        return localStorage.getItem('adminToken') || '';
+    }
+
+    function setToken(token) {
+        if (token) {
+            localStorage.setItem('adminToken', token);
+        } else {
+            localStorage.removeItem('adminToken');
         }
     }
 
-    function loadGallery() {
-        return safeParse('galleryItems', []);
-    }
+    async function apiFetch(path, options = {}) {
+        const response = await fetch(`${API_BASE}${path}`, {
+            headers: {
+                'Content-Type': 'application/json',
+                ...(options.headers || {}),
+            },
+            ...options,
+        });
 
-    function saveGallery(items) {
-        localStorage.setItem('galleryItems', JSON.stringify(items));
-    }
-
-    function loadTutorials() {
-        return safeParse('tutorials', []);
-    }
-
-    function saveTutorials(items) {
-        localStorage.setItem('tutorials', JSON.stringify(items));
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            throw new Error(payload.error || 'Request failed');
+        }
+        return payload;
     }
 
     function toDataURL(file) {
@@ -33,25 +39,6 @@
             reader.onerror = reject;
             reader.readAsDataURL(file);
         });
-    }
-
-    async function sha256Hex(value) {
-        const encoder = new TextEncoder();
-        const data = encoder.encode(value);
-        const hash = await crypto.subtle.digest('SHA-256', data);
-        return Array.from(new Uint8Array(hash))
-            .map((byte) => byte.toString(16).padStart(2, '0'))
-            .join('');
-    }
-
-    async function ensureDefaultPassword() {
-        if (!localStorage.getItem('adminPasswordHash')) {
-            localStorage.setItem('adminPasswordHash', await sha256Hex(DEFAULT_PASSWORD));
-        }
-    }
-
-    function isAuthenticated() {
-        return localStorage.getItem('adminAuth') === 'true';
     }
 
     function escapeHtml(value) {
@@ -90,88 +77,139 @@
         `;
     }
 
-    function renderArtworkList() {
+    async function renderArtworkList() {
         const list = document.getElementById('artworkList');
         if (!list) return;
 
-        const items = loadGallery();
-        list.innerHTML = items.length
-            ? items.map((item, index) => `
-                <div class="flex items-center justify-between p-3 border rounded">
-                    <div class="flex items-center gap-3">
-                        <img src="${item.cover}" class="thumb" alt="${escapeHtml(item.title)}" />
-                        <div>
-                            <div class="font-bold">${item.title}</div>
-                            <div class="text-sm text-gray-600">${item.artist || 'Bengazy'} · $${item.price || 0}</div>
+        try {
+            const items = await apiFetch('/api/gallery');
+            list.innerHTML = items.length
+                ? items.map((item, index) => `
+                    <div class="flex items-center justify-between p-3 border rounded">
+                        <div class="flex items-center gap-3">
+                            <img src="${item.cover}" class="thumb" alt="${escapeHtml(item.title)}" />
+                            <div>
+                                <div class="font-bold">${item.title}</div>
+                                <div class="text-sm text-gray-600">${item.artist || 'Bengazy'} · $${item.price || 0}</div>
+                            </div>
+                        </div>
+                        <div class="flex gap-2">
+                            <button data-index="${index}" class="editPrice bg-gray-200 px-3 py-1 rounded">Edit Price</button>
+                            <button data-index="${index}" class="deleteItem bg-red-500 text-white px-3 py-1 rounded">Delete</button>
                         </div>
                     </div>
-                    <div class="flex gap-2">
-                        <button data-index="${index}" class="editPrice bg-gray-200 px-3 py-1 rounded">Edit Price</button>
-                        <button data-index="${index}" class="deleteItem bg-red-500 text-white px-3 py-1 rounded">Delete</button>
-                    </div>
-                </div>
-            `).join('')
-            : '<div class="text-gray-600">No artworks yet</div>';
+                `).join('')
+                : '<div class="text-gray-600">No artworks yet</div>';
 
-        list.querySelectorAll('.deleteItem').forEach((button) => {
-            button.addEventListener('click', () => {
-                const idx = Number(button.dataset.index);
-                const items = loadGallery();
-                items.splice(idx, 1);
-                saveGallery(items);
-                renderArtworkList();
+            list.querySelectorAll('.deleteItem').forEach((button) => {
+                button.addEventListener('click', async () => {
+                    try {
+                        const idx = Number(button.dataset.index);
+                        const token = getToken();
+                        if (!token) {
+                            alert('Please login first.');
+                            return;
+                        }
+                        await apiFetch(`/api/gallery/${idx}`, {
+                            method: 'DELETE',
+                            headers: {
+                                Authorization: `Bearer ${token}`,
+                            },
+                        });
+                        renderArtworkList();
+                    } catch (error) {
+                        alert(error.message);
+                    }
+                });
             });
-        });
 
-        list.querySelectorAll('.editPrice').forEach((button) => {
-            button.addEventListener('click', () => {
-                const idx = Number(button.dataset.index);
-                const items = loadGallery();
-                const current = items[idx];
-                const nextPrice = prompt('Enter new price', current?.price || '');
-                if (nextPrice !== null) {
-                    items[idx].price = Number(nextPrice) || 0;
-                    saveGallery(items);
-                    renderArtworkList();
-                }
+            list.querySelectorAll('.editPrice').forEach((button) => {
+                button.addEventListener('click', async () => {
+                    try {
+                        const idx = Number(button.dataset.index);
+                        const token = getToken();
+                        if (!token) {
+                            alert('Please login first.');
+                            return;
+                        }
+                        const items = await apiFetch('/api/gallery');
+                        const current = items[idx];
+                        const nextPrice = prompt('Enter new price', current?.price || '');
+                        if (nextPrice !== null) {
+                            await apiFetch(`/api/gallery/${idx}`, {
+                                method: 'PUT',
+                                headers: {
+                                    Authorization: `Bearer ${token}`,
+                                },
+                                body: JSON.stringify({
+                                    title: current.title,
+                                    artist: current.artist,
+                                    description: current.description,
+                                    price: Number(nextPrice) || 0,
+                                }),
+                            });
+                            renderArtworkList();
+                        }
+                    } catch (error) {
+                        alert(error.message);
+                    }
+                });
             });
-        });
+        } catch (error) {
+            list.innerHTML = '<div class="text-gray-600">Unable to load artworks right now.</div>';
+        }
     }
 
-    function renderTutorialList() {
+    async function renderTutorialList() {
         const list = document.getElementById('tutorialList');
         if (!list) return;
 
-        const items = loadTutorials();
-        list.innerHTML = items.length
-            ? items.map((item, index) => `
-                <div class="mb-3 p-3 border rounded">
-                    <div class="font-bold">${item.title}</div>
-                    ${embedForURL(item.url)}
-                    <div class="mt-2">
-                        <button data-index="${index}" class="deleteTutorial bg-red-500 text-white px-2 py-1 rounded">Delete</button>
+        try {
+            const items = await apiFetch('/api/tutorials');
+            list.innerHTML = items.length
+                ? items.map((item, index) => `
+                    <div class="mb-3 p-3 border rounded">
+                        <div class="font-bold">${item.title}</div>
+                        ${embedForURL(item.url)}
+                        <div class="mt-2">
+                            <button data-index="${index}" class="deleteTutorial bg-red-500 text-white px-2 py-1 rounded">Delete</button>
+                        </div>
                     </div>
-                </div>
-            `).join('')
-            : '<div class="text-gray-600">No tutorials saved</div>';
+                `).join('')
+                : '<div class="text-gray-600">No tutorials saved</div>';
 
-        list.querySelectorAll('.deleteTutorial').forEach((button) => {
-            button.addEventListener('click', () => {
-                const idx = Number(button.dataset.index);
-                const items = loadTutorials();
-                items.splice(idx, 1);
-                saveTutorials(items);
-                renderTutorialList();
+            list.querySelectorAll('.deleteTutorial').forEach((button) => {
+                button.addEventListener('click', async () => {
+                    try {
+                        const idx = Number(button.dataset.index);
+                        const token = getToken();
+                        if (!token) {
+                            alert('Please login first.');
+                            return;
+                        }
+                        await apiFetch(`/api/tutorials/${idx}`, {
+                            method: 'DELETE',
+                            headers: {
+                                Authorization: `Bearer ${token}`,
+                            },
+                        });
+                        renderTutorialList();
+                    } catch (error) {
+                        alert(error.message);
+                    }
+                });
             });
-        });
+        } catch (error) {
+            list.innerHTML = '<div class="text-gray-600">Unable to load tutorials right now.</div>';
+        }
     }
 
-    async function showAdminState() {
+    function showAdminState() {
         const loginCard = document.getElementById('loginCard');
         const adminPanel = document.getElementById('adminPanel');
         if (!loginCard || !adminPanel) return;
 
-        if (isAuthenticated()) {
+        if (getToken()) {
             loginCard.style.display = 'none';
             adminPanel.style.display = 'block';
         } else {
@@ -180,81 +218,105 @@
         }
     }
 
-    async function initAuth() {
-        await ensureDefaultPassword();
+    async function tryLogin(password) {
+        const payload = await apiFetch('/api/login', {
+            method: 'POST',
+            body: JSON.stringify({ password }),
+        });
 
+        if (payload.token) {
+            setToken(payload.token);
+            showAdminState();
+            return true;
+        }
+        return false;
+    }
+
+    function attachLoginHandlers() {
         const loginBtn = document.getElementById('loginBtn');
         const useDefaultBtn = document.getElementById('useDefaultBtn');
         const loginPassword = document.getElementById('loginPassword');
-        const loginInput = document.getElementById('loginPassword');
         const logoutBtn = document.getElementById('logoutBtn');
         const changePasswordBtn = document.getElementById('changePassword');
         const oldPasswordInput = document.getElementById('oldPassword');
         const newPasswordInput = document.getElementById('newPassword');
 
-        loginInput?.addEventListener('keydown', async (event) => {
+        loginPassword?.addEventListener('keydown', async (event) => {
             if (event.key === 'Enter') {
                 event.preventDefault();
-                const attempt = loginInput.value || '';
-                const hash = await sha256Hex(attempt);
-                if (hash === localStorage.getItem('adminPasswordHash')) {
-                    localStorage.setItem('adminAuth', 'true');
-                    loginInput.value = '';
-                    await showAdminState();
-                } else {
-                    alert('Invalid password');
+                const value = loginPassword.value.trim();
+                if (!value) {
+                    alert('Please enter your password.');
+                    return;
+                }
+                try {
+                    const ok = await tryLogin(value);
+                    if (!ok) alert('Invalid password');
+                } catch (error) {
+                    alert(error.message);
                 }
             }
         });
 
         loginBtn?.addEventListener('click', async () => {
-            const attempt = loginPassword.value || '';
-            const hash = await sha256Hex(attempt);
-            if (hash === localStorage.getItem('adminPasswordHash')) {
-                localStorage.setItem('adminAuth', 'true');
-                loginPassword.value = '';
-                await showAdminState();
-            } else {
-                alert('Invalid password');
+            const value = (loginPassword?.value || '').trim();
+            if (!value) {
+                alert('Please enter your password.');
+                return;
+            }
+            try {
+                const ok = await tryLogin(value);
+                if (!ok) alert('Invalid password');
+            } catch (error) {
+                alert(error.message);
             }
         });
 
-        useDefaultBtn?.addEventListener('click', async () => {
-            const defaultHash = await sha256Hex(DEFAULT_PASSWORD);
-            localStorage.setItem('adminPasswordHash', defaultHash);
-            alert('Default password set to: admin123');
+        useDefaultBtn?.addEventListener('click', () => {
+            const passwordInput = document.getElementById('loginPassword');
+            if (passwordInput) passwordInput.value = DEFAULT_PASSWORD;
+            alert('Default password is admin123.');
         });
 
         logoutBtn?.addEventListener('click', () => {
-            localStorage.removeItem('adminAuth');
+            setToken('');
             showAdminState();
         });
 
         changePasswordBtn?.addEventListener('click', async () => {
-            const oldPass = oldPasswordInput.value || '';
-            const newPass = newPasswordInput.value || '';
-
+            const oldPass = (oldPasswordInput?.value || '').trim();
+            const newPass = (newPasswordInput?.value || '').trim();
             if (!oldPass || !newPass) {
-                alert('Fill in both current and new password fields.');
+                alert('Fill in both current and new passwords.');
                 return;
             }
 
-            const currentHash = await sha256Hex(oldPass);
-            if (currentHash !== localStorage.getItem('adminPasswordHash')) {
-                alert('Current password is incorrect.');
+            if (!getToken()) {
+                alert('Please login first.');
                 return;
             }
 
-            localStorage.setItem('adminPasswordHash', await sha256Hex(newPass));
-            oldPasswordInput.value = '';
-            newPasswordInput.value = '';
-            alert('Password changed successfully.');
+            try {
+                await apiFetch('/api/change-password', {
+                    method: 'POST',
+                    headers: {
+                        Authorization: `Bearer ${getToken()}`,
+                    },
+                    body: JSON.stringify({
+                        currentPassword: oldPass,
+                        newPassword: newPass,
+                    }),
+                });
+                oldPasswordInput.value = '';
+                newPasswordInput.value = '';
+                alert('Password updated successfully.');
+            } catch (error) {
+                alert(error.message);
+            }
         });
-
-        await showAdminState();
     }
 
-    function initArtworkForm() {
+    function attachArtworkFormHandlers() {
         const form = document.getElementById('artworkForm');
         const clearBtn = document.getElementById('clearStore');
         const coverInput = document.getElementById('cover');
@@ -275,8 +337,8 @@
 
         form.addEventListener('submit', async (event) => {
             event.preventDefault();
-
-            if (!isAuthenticated()) {
+            const token = getToken();
+            if (!token) {
                 alert('Please login first.');
                 return;
             }
@@ -299,65 +361,79 @@
                 progress.push(await toDataURL(file));
             }
 
-            const items = loadGallery();
-            items.unshift({ title, artist, description, price, cover, progress });
-            saveGallery(items);
-            form.reset();
-            coverPreview.src = '';
-            coverPreview.classList.add('hidden');
-            renderArtworkList();
-            alert('Artwork saved successfully.');
+            try {
+                await apiFetch('/api/gallery', {
+                    method: 'POST',
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                    },
+                    body: JSON.stringify({ title, artist, description, price, cover, progress }),
+                });
+                form.reset();
+                coverPreview.src = '';
+                coverPreview.classList.add('hidden');
+                renderArtworkList();
+                alert('Artwork uploaded successfully.');
+            } catch (error) {
+                alert(error.message);
+            }
         });
 
         clearBtn?.addEventListener('click', () => {
-            if (confirm('Clear all gallery data?')) {
-                localStorage.removeItem('galleryItems');
-                renderArtworkList();
+            if (confirm('Clear all uploaded gallery items from the server?')) {
+                alert('This server currently stores data; full delete flow can be added next.');
             }
         });
     }
 
-    function initTutorialForm() {
+    function attachTutorialFormHandlers() {
         const tutorialForm = document.getElementById('tutorialForm');
         const clearBtn = document.getElementById('clearTutorials');
         if (!tutorialForm) return;
 
-        tutorialForm.addEventListener('submit', (event) => {
+        tutorialForm.addEventListener('submit', async (event) => {
             event.preventDefault();
-
-            if (!isAuthenticated()) {
+            const token = getToken();
+            if (!token) {
                 alert('Please login first.');
                 return;
             }
 
             const title = document.getElementById('tutorialTitle').value.trim() || 'Untitled tutorial';
             const url = document.getElementById('tutorialURL').value.trim();
-
             if (!url) {
-                alert('Please provide a social/media link.');
+                alert('Please provide a link.');
                 return;
             }
 
-            const items = loadTutorials();
-            items.unshift({ title, url });
-            saveTutorials(items);
-            renderTutorialList();
-            tutorialForm.reset();
-            alert('Tutorial link saved.');
+            try {
+                await apiFetch('/api/tutorials', {
+                    method: 'POST',
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                    },
+                    body: JSON.stringify({ title, url }),
+                });
+                tutorialForm.reset();
+                renderTutorialList();
+                alert('Tutorial link saved successfully.');
+            } catch (error) {
+                alert(error.message);
+            }
         });
 
         clearBtn?.addEventListener('click', () => {
-            if (confirm('Clear saved tutorials?')) {
-                localStorage.removeItem('tutorials');
-                renderTutorialList();
+            if (confirm('Clear tutorial links?')) {
+                alert('Full tutorial delete support can be added in the backend next.');
             }
         });
     }
 
     function init() {
-        initAuth();
-        initArtworkForm();
-        initTutorialForm();
+        showAdminState();
+        attachLoginHandlers();
+        attachArtworkFormHandlers();
+        attachTutorialFormHandlers();
         renderArtworkList();
         renderTutorialList();
     }

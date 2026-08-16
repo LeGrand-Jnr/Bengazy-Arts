@@ -1,48 +1,59 @@
-# Pencil Artist Portfolio Website
+# Bengazy Arts Portfolio
 
-Welcome to the official portfolio website of a talented pencil artist, designed to showcase stunning hand-drawn creations in a clean, elegant, and interactive format. This site was built using HTML, CSS, and JavaScript to deliver a smooth user experience and highlight the artist’s unique style.
+A portfolio and commission site for a pencil artist with:
+
+- gallery modal and artwork detail view
+- artist admin login
+- tutorial links and social embeds
+- live server-backed storage for artworks and tutorials
 
 ## Features
-* **Gallery Showcase:** A responsive image gallery that displays the artist’s pencil drawings with hover effects and lightbox viewing.
-* **About Section:** A personal introduction to the artist, their inspiration, and artistic journey.
-* **Contact Form:** A simple form for visitors to reach out for commissions, collaborations, or feedback.
-* **Smooth Navigation:** Scroll animations and transitions for a polished feel.
-* **Tutorials:** A page for showcasing the artist's short videos through links to his social media posts.
-* **Responsive Design:** Optimized for desktops, tablets, and mobile devices.
 
-### Technologies Used
+- Clickable gallery cards with pop-up detail modal
+- Progress images shown with the final cover image
+- Artist admin panel for uploads
+- Tutorial links for YouTube, Vimeo, Instagram, or direct URLs
+- Secure token-based admin login
 
-| Technology | Purpose |
-| :--- | :--- |
-| HTML | Structure and layout |
-| CSS | Styling and responsive design |
-| JavaScript | Interactivity and dynamic content |
+## Run locally
 
-#### Folder Structure
-```text
-Ben/
-├── images/
-│   └── [artwork files]
-├── index.html
-├── main.js
-├── pricing-booking.html
-├── tutorials.html
-├── styles.css
-└── README.md
-```
-
-##### Getting Started
-To view the website locally:
-
-Clone the repository:
+1. Open a terminal in the project folder.
+2. Start the backend server:
 
 ```bash
-git clone https://github.com/LeGrand-Jnr/Ben.git
+python server.py
 ```
 
-Open index.html in your browser.
+3. Open:
 
-Enjoy the artwork!
+```text
+http://localhost:8000/
+```
 
-###### Contact
-For inquiries or feedback, please reach out via the email: samuelodonkor436@gmail.com
+4. Open the admin panel here:
+
+```text
+http://localhost:8000/admin.html
+```
+
+5. Login with the default admin password:
+
+```text
+admin123
+```
+
+## API
+
+The app exposes a small API for the admin panel and gallery rendering:
+
+- `GET /api/health`
+- `POST /api/login`
+- `GET /api/gallery`
+- `POST /api/gallery`
+- `GET /api/tutorials`
+- `POST /api/tutorials`
+
+## Notes
+
+- The current admin flow stores the password and data in a local server-backed JSON file for easy local setup.
+- For production, replace the local storage with a real database and secure server deployment.
