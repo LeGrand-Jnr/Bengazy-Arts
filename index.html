@@ -43,6 +43,7 @@
                     <li><a href="tutorials.html" class="hover:text-accent transition">Tutorials</a></li>
                     <li><a href="pricing-booking.html" class="hover:text-accent transition">Pricing & Booking</a></li>
                     <li><a href="#reviews" class="hover:text-accent transition">Reviews</a></li>
+                    <li><a href="admin.html" class="hover:text-accent transition">Admin</a></li>
                 </ul>
             </nav>
             <button class="md:hidden text-2xl">
@@ -123,86 +124,37 @@
                 </div>
             </div>
             
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-                <!-- Artwork 1 -->
-                <div class="artwork-card bg-white rounded-lg overflow-hidden shadow-lg">
-                    <div class="relative">
-                        <img src="images\judge.jpg" alt="Portrait 1" class="w-full h-64 object-cover">
-                        <div class="artwork-overlay absolute inset-0 bg-black bg-opacity-70 flex items-center justify-center opacity-0 transition-opacity duration-300">
-                            <div class="text-center text-white p-4">
-                                <h3 class="text-xl font-bold mb-2">Judge Frank Caprio</h3>
-                                <p class="mb-4">Masterpiece</p>
-                                <button class="bg-secondary hover:bg-accent text-white py-2 px-4 rounded-full">View Details</button>
-                            </div>
-                        </div>
+            <div id="galleryGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+                <!-- Gallery items will be rendered here by main.js -->
+            </div>
+
+            <div class="text-center mt-8">
+                <a href="admin.html" class="inline-flex items-center text-secondary hover:text-accent font-bold">
+                    Artist Admin Panel
+                    <i class="fas fa-arrow-right ml-2"></i>
+                </a>
+            </div>
+
+            <!-- Artwork Modal -->
+            <div id="artworkModal" class="fixed inset-0 bg-black bg-opacity-60 hidden items-center justify-center z-50">
+                <div class="bg-white rounded-lg max-w-4xl w-full mx-4 overflow-hidden">
+                    <div class="flex justify-between items-center p-4 border-b">
+                        <h3 id="modalTitle" class="text-xl font-bold"></h3>
+                        <button id="modalClose" class="text-gray-700 hover:text-dark text-2xl">&times;</button>
                     </div>
-                </div>
-                
-                <!-- Artwork 2 -->
-                <div class="artwork-card bg-white rounded-lg overflow-hidden shadow-lg">
-                    <div class="relative">
-                        <img src="images\india.jpg" alt="Portrait 2" class="w-full h-64 object-cover">
-                        <div class="artwork-overlay absolute inset-0 bg-black bg-opacity-70 flex items-center justify-center opacity-0 transition-opacity duration-300">
-                            <div class="text-center text-white p-4">
-                                <h3 class="text-xl font-bold mb-2">Serene Portrait</h3>
-                                <p class="mb-4">Masterpiece</p>
-                                <button class="bg-secondary hover:bg-accent text-white py-2 px-4 rounded-full">View Details</button>
-                            </div>
+                    <div class="p-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="md:col-span-2">
+                            <img id="modalCover" src="" alt="cover" class="w-full h-96 object-contain bg-gray-100">
+                            <div id="progressStrip" class="mt-4 flex gap-2 overflow-x-auto"></div>
                         </div>
-                    </div>
-                </div>
-                
-                <!-- Artwork 3 -->
-                <div class="artwork-card bg-white rounded-lg overflow-hidden shadow-lg">
-                    <div class="relative">
-                        <img src="images\pablo.jpg" alt="Portrait 3" class="w-full h-64 object-cover">
-                        <div class="artwork-overlay absolute inset-0 bg-black bg-opacity-70 flex items-center justify-center opacity-0 transition-opacity duration-300">
-                            <div class="text-center text-white p-4">
-                                <h3 class="text-xl font-bold mb-2">The Thinker</h3>
-                                <p class="mb-4">Commissioned Portrait</p>
-                                <button class="bg-secondary hover:bg-accent text-white py-2 px-4 rounded-full">View Details</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Artwork 4 -->
-                <div class="artwork-card bg-white rounded-lg overflow-hidden shadow-lg">
-                    <div class="relative">
-                        <img src="images\IMG-20240208-WA0034.jpg" alt="Portrait 4" class="w-full h-64 object-cover">
-                        <div class="artwork-overlay absolute inset-0 bg-black bg-opacity-70 flex items-center justify-center opacity-0 transition-opacity duration-300">
-                            <div class="text-center text-white p-4">
-                                <h3 class="text-xl font-bold mb-2">Mystic Eyes</h3>
-                                <p class="mb-4">Masterpiece</p>
-                                <button class="bg-secondary hover:bg-accent text-white py-2 px-4 rounded-full">View Details</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Artwork 5 -->
-                <div class="artwork-card bg-white rounded-lg overflow-hidden shadow-lg">
-                    <div class="relative">
-                        <img src="images\IMG-20240208-WA0035.jpg" alt="Portrait 5" class="w-full h-64 object-cover">
-                        <div class="artwork-overlay absolute inset-0 bg-black bg-opacity-70 flex items-center justify-center opacity-0 transition-opacity duration-300">
-                            <div class="text-center text-white p-4">
-                                <h3 class="text-xl font-bold mb-2">Soulful Expression</h3>
-                                <p class="mb-4">Commissioned Portrait</p>
-                                <button class="bg-secondary hover:bg-accent text-white py-2 px-4 rounded-full">View Details</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Artwork 6 -->
-                <div class="artwork-card bg-white rounded-lg overflow-hidden shadow-lg">
-                    <div class="relative">
-                        <img src="images\IMG-20240208-WA0018.jpg" alt="Portrait 6" class="w-full h-64 object-cover">
-                        <div class="artwork-overlay absolute inset-0 bg-black bg-opacity-70 flex items-center justify-center opacity-0 transition-opacity duration-300">
-                            <div class="text-center text-white p-4">
-                                <h3 class="text-xl font-bold mb-2">The Visionary</h3>
-                                <p class="mb-4">Masterpiece</p>
-                                <button class="bg-secondary hover:bg-accent text-white py-2 px-4 rounded-full">View Details</button>
+                        <div>
+                            <h4 class="font-bold mb-2">Details</h4>
+                            <p id="modalDescription" class="text-gray-700 mb-4"></p>
+                            <p><strong>Artist:</strong> <span id="modalArtist"></span></p>
+                            <p><strong>Price:</strong> <span id="modalPrice"></span></p>
+                            <div class="mt-4">
+                                <button id="revealNotes" class="bg-secondary hover:bg-accent text-white py-2 px-4 rounded">View Notes</button>
+                                <div id="notes" class="mt-3 hidden text-sm text-gray-600"></div>
                             </div>
                         </div>
                     </div>
@@ -382,7 +334,7 @@
                 <p class="text-center mb-6" style="color: #e74c3c;">For group portraits, special requests, or unique sizes, please contact me for a custom quote.</p>
                 <div class="flex flex-col sm:flex-row justify-center gap-4">
                     <a href="#booking" class="bg-secondary hover:bg-accent text-white font-bold py-3 px-8 rounded-full text-center transition">Request Custom Quote</a>
-                    <a href="mailto:contact@bengazyarts.com" class="bg-primary hover:bg-dark text-white font-bold py-3 px-8 rounded-full text-center transition">Contact Directly</a>
+                    <a href="mailto:otoob6101@gmail.com" class="bg-primary hover:bg-dark text-white font-bold py-3 px-8 rounded-full text-center transition">Contact Directly</a>
                 </div>
             </div>
         </div>

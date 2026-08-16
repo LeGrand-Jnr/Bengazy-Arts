@@ -26,6 +26,12 @@
 .social-icon:hover {
     transform: translateY(-5px);
 }
+.thumb { width: 80px; height: 80px; object-fit: cover; border-radius: 6px }
+.modal-open { overflow: hidden }
+# Modal layout adjustments (kept minimal)
+#artworkModal { display: none }
+#artworkModal.flex { display: flex }
+#artworkModal .thumb { width: 64px; height: 64px }
 .booking-form input, .booking-form textarea, .booking-form select {
     transition: all 0.3s ease;
 }
